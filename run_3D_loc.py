@@ -4,6 +4,7 @@
 #Initialize things? Set parameters? Read stations?
 from misc_tools import *
 from numpy import *
+import os.path
 
 nr= 46
 nlat=230
@@ -38,15 +39,22 @@ qdep=arange(hdr.oz,hdr.dz*hdr.nz+hdr.oz,hdr.dz)
 #Grid search for best location
 for ev in evpha: #Loop over each event. We'll relocate everything on the list
     arrvec=array([]) #a vector of travel times
+    absvec=array([]) # absolute arrival times
     arrsta=[] #a list of station names
     for arrival in ev['arrivals']: #Loop over arrivals and make vectors
+#        if not os.path.isfile(arrival['staname']+'traveltime'):
+#            continue
         arrvec=append(arrvec, float(arrival['ttime']) ) #Build vector of observed ttimes
+        absvec=append(absvec, arrival['epoch'] ) #Absolute, not relative, times
         arrsta.append( arrival['staname'])
+    if not arrsta: #Skip this event if no phases are present
+        #print 'No arrivals for event ' +str(ev['id'])
+        continue
 
     #Search coarsely
     dstep= 10;dx=nlon/dstep;dy=nlat/dstep;dz=nr/dstep;
     qx = range(1,nlon,dx); qy=range(1,nlat,dy); qz=range(1,nr,dz);
-    minx,miny,minz=grid_search_traveltimes(arrsta,qx,qy,qz,arrvec,li)
+    minx,miny,minz=grid_search_traveltimes_rms(arrsta,qx,qy,qz,arrvec,li)
 
     #Finer search
     buff=15
@@ -54,11 +62,28 @@ for ev in evpha: #Loop over each event. We'll relocate everything on the list
     qx=fix_boundary_search(qx,li.nx)
     qy=fix_boundary_search(qy,li.ny)
     qz=fix_boundary_search(qz,li.nz)
-    minx,miny,minz=grid_search_traveltimes(arrsta,qx,qy,qz,arrvec,li)
+    minx,miny,minz=grid_search_traveltimes_rms(arrsta,qx,qy,qz,arrvec,li)
+    #Find the best-fit source location in geographic coordinates
+    lon1=qlon[minx]; lat1=qlat[miny]; z1=qdep[minz]
+
+    #Search coarsely
+    dstep= 10;dx=nlon/dstep;dy=nlat/dstep;dz=nr/dstep;
+    qx = range(1,nlon,dx); qy=range(1,nlat,dy); qz=range(1,nr,dz);
+    minx,miny,minz,orgmin=grid_search_traveltimes_origin(arrsta,qx,qy,qz,absvec,li)
+
+    #Finer search
+    buff=15
+    qx = range(minx-buff,minx+buff); qy=range(miny-buff,miny+buff); qz=range(minz-buff,minz+buff);
+    qx=fix_boundary_search(qx,li.nx)
+    qy=fix_boundary_search(qy,li.ny)
+    qz=fix_boundary_search(qz,li.nz)
+    minx,miny,minz,orgmin=grid_search_traveltimes_origin(arrsta,qx,qy,qz,absvec,li)
+    print orgmin
+    #Find the best-fit source location in geographic coordinates
+    lon2=qlon[minx]; lat2=qlat[miny]; z2=qdep[minz]
 
     #Find the best-fit source location in geographic coordinates
-    lon=qlon[minx]; lat=qlat[miny]; z=qdep[minz]
-    print lon,lat,z,ev['lon'],ev['lat'],ev['depth']
+    print 'RMS: ',lon1,lat1,z1,'|| Origin: ',lon2,lat2,z2,' || ',ev['lon'],ev['lat'],ev['depth']
 elapsed_time=time.time()-start_time
 print 'Finished locating earthquake at ',time.ctime(time.time()),'\n'
 print 'Total location time: %8.4f seconds.\n' % (elapsed_time)

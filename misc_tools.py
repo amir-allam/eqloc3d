@@ -1,10 +1,15 @@
 import subprocess
 import time
 import struct
+import os,sys
+sys.path.append('%s/data/python'%os.environ['ANTELOPE'])
+from antelope.datascope import dbopen
+from antelope.stock import str2epoch
 from numpy import *
 from matplotlib import pyplot as plt
 from array import array #This is for fast io when writing binary 
 from collections import defaultdict
+
 #Read ASCII arrival time file output by FMM code
 
 def num(s):
@@ -228,7 +233,7 @@ def read_binary_float(fid,n=0,precision='double'):
     val=tmp[0]
     return val
 
-def grid_search_traveltimes(arrsta,qx,qy,qz,arrvec,li):
+def grid_search_traveltimes_rms(arrsta,qx,qy,qz,arrvec,li):
 #Find the minimum value of some criterion by performing a grid search
 # We aren't necessarily searching the whole grid; we may be skipping values
 #   sta         list of station names; strings
@@ -255,6 +260,35 @@ def grid_search_traveltimes(arrsta,qx,qy,qz,arrvec,li):
     (minx,miny,minz)=search_inds.get_3D(min_ind)
     minx=qx[minx]; miny=qy[miny]; minz=qz[minz];
     return minx,miny,minz
+
+def grid_search_traveltimes_origin(arrsta,qx,qy,qz,arrvec,li):
+#Find the minimum value of the origin time standard deviation following Ben-Zion et al., 1992 (JGR)
+#  sta          list of station names; strings
+#   qx,qy,qz    vectors of indices to search through
+#   arrvec      vector of absolute arrivals in the same order as sta
+#   li          Linear_index class for the entire traveltime grid
+    from numpy import array #There is no reason this should be here, but the next line generated error messages if it wasn't. I'm confused
+    rms=array([])
+    origin_std=array([])
+    search_inds=Linear_index(len(qx),len(qy),len(qz))
+    for ix in qx:  #Loop over the three vectors, searching every point
+        for iy in qy:
+            for iz in qz:
+                calctt=array([]); #initialize the calculated tt vector
+                ind=li.get_1D(ix,iy,iz) #Find the vector index
+                for sta in arrsta: #Build vector of calculated ttimes
+                    #print 'bin.'+sta+'.traveltime'
+                    fid = open('bin.'+sta+'.traveltime')
+                    calctt=append(calctt, read_binary_float(fid,ind) )
+                    #print read_binary_float(fid,ind)
+                    fid.close()
+                orivec=arrvec-calctt
+                origin_std=append(origin_std, orivec.std() )
+    #Now find the 3D index of the best point so far
+    min_ind=origin_std.argmin()
+    (minx,miny,minz)=search_inds.get_3D(min_ind)
+    minx=qx[minx]; miny=qy[miny]; minz=qz[minz];
+    return minx,miny,minz,origin_std.min()
 
 def fix_boundary_search(qx,nx):
 #When performing a grid search on a subgrid, make sure you don't go off the edges
@@ -347,10 +381,16 @@ class Stalist(list):
             self.append(self.Sta(tmp[0],float(tmp[1]),float(tmp[2]),float(tmp[3])))
         fid.close()
 
+    def show(self): #Show the contents of the station list
+        for sta in self:
+            sta.show()
+
     class Sta():
     #a class for each individual station. There is almost certainly a more elegant way to do this.
         def __init__(self,name,lat,lon,elev):
             self.name=name; self.lat=lat; self.lon=lon; self.elev=elev
+        def show(self): #show the contents of the station class
+            print '%s %5.4f %5.4f %5.2f'% (self.name,self.lon,self.lat,self.elev)
 
 class Phalist(list):
 #A class containing the event information with arrival times for each event
@@ -366,9 +406,14 @@ class Phalist(list):
             tmp=line.strip().split()
             if tmp[0] is '#':
                 ic=ic+1
-                self.append( {'id':int(tmp[14]),'year':int(tmp[1]),'month':int(tmp[2]),'day':int(tmp[3]),'hour':int(tmp[4]),'min':int(tmp[5]),'sec':float(tmp[6]),'lon':float(tmp[8]),'lat':float(tmp[7]),'depth':float(tmp[9]),'mag':float(tmp[10]),'arrivals':list()} )
+                #Calculate epoch time
+                str_date=tmp[2]+'/'+tmp[3]+'/'+tmp[1]+' '+tmp[4]+':'+tmp[5]+':'+tmp[6]
+                ev_epoch=str2epoch(str_date)
+                self.append( {'ep':ev_epoch,'id':int(tmp[14]),'year':int(tmp[1]),'month':int(tmp[2]),'day':int(tmp[3]),'hour':int(tmp[4]),'min':int(tmp[5]),'sec':float(tmp[6]),'lon':float(tmp[8]),'lat':float(tmp[7]),'depth':float(tmp[9]),'mag':float(tmp[10]),'arrivals':list()} )
             else:
-                self[ic]['arrivals'].append( {'staname':tmp[0],'ttime':float(tmp[1]),'qual':float(tmp[2]),'phase':tmp[3]} )
+                #Calculate epoch time
+                pha_epoch=ev_epoch+float(tmp[1])
+                self[ic]['arrivals'].append( {'staname':tmp[0],'ttime':float(tmp[1]),'qual':float(tmp[2]),'phase':tmp[3],'epoch':pha_epoch} )
         print 'Finished reading '+fnam
 
 class Traveltime_header_file():
