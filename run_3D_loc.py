@@ -15,10 +15,6 @@ li=Linear_index(nlon,nlat,nr)
 stafnam='sta.phase_220to9_july13.dat'
 stalist=Stalist(stafnam)
 
-#Compute traveltime maps for each station
-if 0:
-    gen_sta_tt_maps(stalist)
-
 #Keep track of time
 start_time=time.time()
 print 'Starting earthquake location at ',time.ctime(start_time),'\n'

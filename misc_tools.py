@@ -37,29 +37,6 @@ def load_faults():
     print 'Faults loaded...'
     return faultlon,faultlat
 
-def run_fmm():
-#Run the traveltime solver with all of the input files currently in the directory
-#  Note: Input files should already be set using write_sources_in, etc...
-    subprocess.call('./fm3d',shell=True)
-
-def write_sources_in(src_dep,src_lat,src_lon):
-#Write  the sources.in file, which has this form:
-    # 1                                number of sources
-    # 0                                source is local/teleseismic (0/1)
-    # 5.00  33.0   -116.0      position depth(km),lat(deg),long(deg)
-    # 1                                number of paths from this source
-    # 1                                number of sections on the path
-    # 0 1           define the path sections
-    # 1            define the velocity type along the path
-    numsrc=1
-    teleflag=0
-    numpaths=1
-    numsections=1
-    veltype=1
-    fid = open('sources.in','w')
-    fid.write(" %i\n %i\n %.4f %.4f %.4f\n %i\n %i\n %i %i\n %i\n" % (numsrc,teleflag,src_dep,src_lat, src_lon, numpaths, numsections, 0,1,veltype))
-    fid.close()
-
 def read_arrtimes(fnam='arrtimes.dat',ifplot=0): #default name
 #Read arrival times from file fnam
     print 'Reading arrival times from '+fnam
@@ -100,23 +77,6 @@ def read_arrtimes(fnam='arrtimes.dat',ifplot=0): #default name
         plt.axis([-118,-115,32,35])
         plt.pcolor(lonvec,latvec,data[:,:,6])
     return data
-
-def gen_sta_tt_maps(stalist,if_write_binary=True):
-#Generate a travel time map for each station in the station list
-    start_time=time.time()
-    print 'Starting travel time calculation at ',start_time,'\n'
-    for sta in stalist:
-        print 'Generating travel times for station', sta.name, '\n'
-        write_sources_in(.10,sta.lat,sta.lon) # !!!! For now, depth is set to 0
-        run_fmm()
-        #Create output file name
-        outfnam=sta.name+'.traveltime'
-        subprocess.call('mv arrtimes.dat '+outfnam,shell=True)
-        if if_write_binary:
-            tt_ascii_to_binary(outfnam)
-    elapsed_time=time.time()-start_time
-    print 'Finished travel time calculations at ',time.time(),'\n'
-    print 'Total calculation time: %8.4f seconds.\n' % (elapsed_time)
 
 def find_containing_cube(px,py,pz,xvec,yvec,zvec):
 #Find the 8 endpoints for the cell which contains point px,py
@@ -180,44 +140,6 @@ def find_nearest(px,xvec):
             shortest=abs(xvec[ii]-px)
             best_ind=ii
     return best_ind,xvec[best_ind]
-
-def tt_ascii_to_binary(fnam):
-#Convert an ascii traveltime file to binary format
-# Also puts the header in a separate ascii file
-# just put "bin" and "hdr" in front of the filename
-    binfnam='bin.'+fnam
-    hdrfnam='hdr.'+fnam
-    print 'Reading arrival times from '+fnam
-    #Open and read header
-    fid = open(fnam,'r')
-    tmp=fid.readline().strip().split()
-    nz=num(tmp[0]);nlat=num(tmp[1]);nlon=num(tmp[2]) #Number of grid points
-    tmp=fid.readline().strip().split()
-    dz=num(tmp[0]);dlat=num(tmp[1]);dlon=num(tmp[2]) #Spacing of grid points
-    tmp=fid.readline().strip().split()
-    oz=num(tmp[0]);olat=num(tmp[1]);olon=num(tmp[2]) #Origin of grid points
-    tmp=fid.readline().strip().split()
-    narr=num(tmp[0])                         #number of sets of arrival times
-    tmp=fid.readline().strip().split()
-    null1=num(tmp[0]);null2=num(tmp[1]);null3=num(tmp[2])                         #source and path for arrival time ???
-    #Now read the traveltimes into a list
-    lines=fid.readlines()
-    data=[]
-    for line in lines:
-        data.append( float(line) )
-    fid.close()
-    # Now output in binary format
-    fid=open(binfnam,'w')
-    out_array=array('d',data)#It is apparently faster to turn this into an array
-    out_array.tofile(fid)
-    fid.close()
-
-    #Now Write the header
-    fid = open(hdrfnam,'w')
-    fid.write(" %i %i %i\n %.4f %.6f %.6f\n %.5f %.5f %.5f\n %i\n %i %i %i" % (nz,nlat,nlon, dz,dlat,dlon, oz,olat,olon, narr, null1,null2,null3))
-    fid.close()
-    print 'Finished writing arrival times to '+binfnam+' and '+hdrfnam
-    #return data #Don't forget to remove this!!
 
 def read_binary_float(fid,n=0,precision='double'):
 #read the nth float value from a binary file at the with the given precision
