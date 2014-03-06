@@ -7,13 +7,14 @@ def _main():
     while True:
         last_lddate = 0
         events = []
-        station_list = StationList(dbin)
+        station_list = StationList(args.dbin)
         with closing(dbopen(args.dbin, 'r')) as dbin:
-            tbl_event = dbin.schema_table['event']
+            tbl_event = dbin.schema_tables['event']
             tbl_event = tbl_event.subset('lddate > _%f_' % last_lddate)
             for record in tbl_event.iter_record():
                 events.append(record.getv('evid')[0])
-        process_events(dbin, dbout, events, station_list)
+                last_lddate = record.getv('lddate')[0]
+        process_events(args.dbin, args.dbout, events, station_list)
     return 0
 
 def _parse_args():
