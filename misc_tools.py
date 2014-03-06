@@ -2,9 +2,9 @@ import subprocess
 import time
 import struct
 import os,sys
-sys.path.append('%s/data/python'%os.environ['ANTELOPE'])
-from antelope.datascope import dbopen
-from antelope.stock import str2epoch
+sys.path.append('%s/data/python' % os.environ['ANTELOPE'])
+from antelope.datascope import closing, dbopen
+from antelope.stock import str2epoch, epoch2str
 from numpy import *
 from matplotlib import pyplot as plt
 from array import array #This is for fast io when writing binary 
@@ -292,6 +292,7 @@ class Parameters():
 #self.prop_rvec=linspace(self.vel_minr,self.vel_minr+(self.vel_dr*self.vel_nr),self.vel_nr)
 
 class Stalist(list):
+    """This class is deprecated by StationList class"""
 #A class containing a list of stations and their locations
     def __init__(self,fnam):
         #Read the station file
@@ -314,7 +315,205 @@ class Stalist(list):
         def show(self): #show the contents of the class
             print '%s %5.4f %5.4f %5.2f'% (self.name,self.lon,self.lat,self.elev)
 
+class Station():
+    """
+    A container class to hold station metadata.
+    """
+    def __init__(self, name, lat, lon, elev):
+        self.name, self.lat, self.lon, self.elev = name, lat, lon, elev
+
+    def __str__(self):
+        ret = 'Station Object\n--------------\n'
+        ret += 'name:\t\t%s\n' % self.name
+        ret += 'lat: \t\t%f\n' % self.lat
+        ret += 'lon: \t\t%f\n' % self.lon
+        ret += 'elev: \t\t%f\n' % self.elev
+
+    def show(self): #show the contents of the class
+        print '%s %5.4f %5.4f %5.2f'% (self.name,self.lon,self.lat,self.elev)
+
+class StationList(list):
+    """
+    A container class for a list of Station objects.
+
+    This class replaces the deprecated Stalist class.
+    """
+    def __init__(self, inp, is_db=True):
+        if is_db: self._init_db(inp)
+        else: self._init_scedc(inp)
+
+    def __str__(self):
+        ret = 'StationList Object\n------------------\n'
+        for sta in self:
+            ret += 'sta:\t\t%s\n' % sta.name
+            ret += 'lat:\t\t%f\n' % sta.lat
+            ret += 'lon:\t\t%f\n' % sta.lon
+            ret += 'elev:\t\t%f\n' % sta.elev
+        return ret
+
+    def _init_db(self, db):
+        """
+        Initialize station list using a CSS3.0 database as input.
+        """
+        with closing(dbopen(db, 'r')) as db:
+            tbl_site = db.schema_tables['site']
+            tbl_site = tbl_site.sort('sta', unique=True)
+            for record in tbl_site.iter_record():
+                sta, lat, lon, elev = record.getv('sta', 'lat', 'lon', 'elev')
+                self.append(Station(sta, lat, lon, elev))
+
+    def _init_scedc(self, infile):
+        """
+        Initialize station list using SCEDC format flat file as input.
+        """
+        infile = open(infile, 'r')
+        for line in infile:
+            line = line.strip().split() #stripping may be uneccessary
+            self.append(Station(line[0],
+                                 float(line[1]),
+                                 float(line[2]),
+                                 float(line[3])))
+
+class _Event():
+    """
+    A container class for earthquake event metadata.
+    """
+    #def __init__(self, time, lat, lon, depth, mag, magtype=None, evid=None):
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize Event object using one of two possible inputs.
+
+        This first (standard) input method is to simply supply a 
+        CSS3.0 database path and an evid.
+
+        The second method requires an auxiliary read function which will parse
+        an input flat file (probably SCEDC format) and pass the following
+        arguments in the following order.
+        EG. event = Event(time,
+                          latitude,
+                          longitude,
+                          depth,
+                          magnitude,
+                          phase_list,
+                          magtype=magnitude_type,
+                          evid=event_id)
+        The keyword arguments (magtype and evid) are optional.
+        """
+        if len(args) == 2: self._init_from_db(*args)
+        else: self._init_from_aux(*args, **kwargs)
+
+    def __str__(self):
+        ret = 'Event Object\n------------\n'
+        ret += 'evid:\t\t%d\n' % self.evid
+        ret += 'time:\t\t%f\n' % self.time
+        ret += 'lat:\t\t%f\n' % self.lat
+        ret += 'lon:\t\t%f\n' % self.lon
+        ret += 'depth:\t\t%f\n' % self.depth
+        ret += 'mag:\t\t%f\n' % self.mag
+        ret += 'magtype:\t%s\n' % self.magtype
+        ret += 'year:\t\t%d\n' % self.year
+        ret += 'month:\t\t%d\n' % self.month
+        ret += 'day:\t\t%d\n' % self.day
+        ret += 'hour:\t\t%d\n' % self.hour
+        ret += 'minute:\t\t%d\n' % self.minute
+        ret += 'second:\t\t%d\n' % self.second
+        ret += 'arrivals:\n'
+        if len(self.arrivals) == 0:
+            ret += '\t\tNone\n'
+        else:
+            for i in range(len(self.arrivals)):
+                for line in  ('%s' % self.arrivals[i]).split('\n'):
+                    ret += '\t\t%s\n' % line
+        return ret
+
+    def _init_from_db(self, db, evid):
+        """
+        Initialize Event object using a CSS3.0 database as input.
+        """
+        if evid == None: raise(Exception('No \'evid\' supplied. Could not '
+            'initialize Event object from CSS3.0 database.'))
+        with closing(dbopen(db, 'r')) as db:
+            view = db.schema_tables['event']
+            view = view.join('origin')
+            view = view.subset('evid == %s' % evid)
+            view = view.subset('orid == prefor')
+            #If for some reason this subset is empty, just take the first
+            #solution as preferred. EG. prefor field is unitialized.
+            if view.record_count == 0:
+                view = db.schema_tables['origin']
+                view = db.schema_tables['event']
+                view = view.join('origin')
+                view = view.subset('evid == %s' % evid)
+            view = view.join('netmag', outer=True)
+            view.record = 0
+            evid, time, lat, lon, depth, mag, magtype =  view.getv('evid',
+                'time', 'lat', 'lon', 'depth', 'magnitude', 'magtype')
+            self.evid       = evid
+            self.time       = time
+            self.lat        = lat
+            self.lon        = lon
+            self.depth      = depth
+            self.mag        = mag
+            self.magtype    = magtype
+            self.year       = int(epoch2str(time, '%Y'))
+            self.month      = int(epoch2str(time, '%m'))
+            self.day        = int(epoch2str(time, '%d'))
+            self.hour       = int(epoch2str(time, '%H'))
+            self.minute     = int(epoch2str(time, '%M'))
+            self.second     = float(epoch2str(time, '%S.%s'))
+            view = view.join('assoc')
+            view = view.join('arrival')
+            arrivals = [ record.getv('sta',
+                                     'arrival.time',
+                                     'phase',
+                                     'timeres') \
+                                     for record in view.iter_record()
+                       ]
+            self.arrivals = [ Phase(sta, time, phase, qual)
+                            for sta, time, phase, qual in arrivals
+                            ]
+
+    def _init_from_aux(self, time, lat, lon, dpeth, mag, magtype=None, evid=None):
+        """
+        Initialize Event object using an auxiliary read function.
+
+        Auxiliary read function must parse flat file and pass parameters 
+        to Event contsructor.
+        """
+        self.time = time
+        self.lat        = lat
+        self.lon        = lon
+        self.depth      = depth
+        self.mag        = mag
+        self.magtype    = magtype
+        self.year = int(epoch2str(time, '%Y'))
+        self.month = int(epoch2str(time, '%m'))
+        self.day = int(epoch2str(time, '%d'))
+        self.hour = int(epoch2str(time, '%H'))
+        self.minute = int(epoch2str(time, '%M'))
+        self.second = float(epoch2str(time, '%S.%s'))
+        self.arrivals = phase_list
+
+class Phase():
+    """
+    A container class for phase data.
+    """
+    def __init__(self, sta, time, phase, qual):
+        self.sta = sta
+        self.time = time
+        self.phase = phase
+        self.qual = qual
+
+    def __str__(self):
+        ret = 'Arrival Object\n--------------\n'
+        ret += 'sta:\t\t%s\n' % self.sta
+        ret += 'time:\t\t%f\n' % self.time
+        ret += 'phase:\t\t%s\n' % self.phase
+        ret += 'qual:\t\t%f\n'  % self.qual
+        return ret
+
 class Phalist(list):
+    """This class is deprecated by PhaseList class."""
 #A class containing the event information with arrival times for each event
     def __init__(self,fnam,ftype='ANTDB'):
         # fnam -    the file to be read
@@ -409,3 +608,11 @@ class Traveltime_header_file():
        tmp=fid.readline().strip().split()
        self.srcpath=num(tmp[0])                         #source and path for arrival time ???
        fid.close()
+
+def process_events(dbin, dbout, events, station_list):
+    print station_list
+    for event in events:
+        event = _Event(dbin, event)
+        print '###%d' %  event.evid
+        print event
+
