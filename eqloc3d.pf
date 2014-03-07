@@ -1,0 +1,20 @@
+velocity_grid &Arr{
+    minlon     -118.007
+    dlon        0.0109
+    nlon        273
+    minlat      32.4613
+    dlat        0.0091
+    nlat        252
+    minr        6325.0
+    dr          1.0
+    nr          51
+}
+
+propagation_grid &Arr{
+    minlon      -117.95
+    minlat      32.5
+    minz        0.0
+    nlon        250
+    nlat        230
+    nr          46
+}
