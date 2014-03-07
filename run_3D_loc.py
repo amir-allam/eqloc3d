@@ -12,7 +12,6 @@ def run_3d_location_algorithm(event, station_list, params):
 
     #Return None if there are no arrival for events.
     #This should probably be recorded in log.
-    print params
     if len(event.arrivals) == 0: return None
 
     #These should go in parameter file.
