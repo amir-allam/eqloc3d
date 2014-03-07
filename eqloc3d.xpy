@@ -14,7 +14,7 @@ def _main():
             for record in tbl_event.iter_record():
                 events.append(record.getv('evid')[0])
                 last_lddate = record.getv('lddate')[0]
-        process_events(args.dbin, args.dbout, events, station_list)
+        process_events(args.dbin, args.dbout, events, station_list, params)
     return 0
 
 def _parse_args():

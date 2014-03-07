@@ -18,3 +18,13 @@ propagation_grid &Arr{
     nlat        230
     nr          46
 }
+
+location_parameters &Arr{
+    nr          46
+    nlat        230
+    nlon        250
+    dstep1      10
+    buff1       15
+    dstep2      10
+    buff2       15
+}
