@@ -15,9 +15,9 @@ def run_3d_location_algorithm(event, station_list, params):
     if len(event.arrivals) == 0: return None
 
     #These should go in parameter file.
-    nr = loc_params['nr']
-    nlat = loc_params['nlat']
-    nlon = loc_params['nlon']
+    nr = int(loc_params['nr'])
+    nlat = int(loc_params['nlat'])
+    nlon = int(loc_params['nlon'])
     nx, ny, nz = nlon, nlat, nr
     li = Linear_index(nlon, nlat, nr)
 
@@ -44,7 +44,7 @@ def run_3d_location_algorithm(event, station_list, params):
 
     #Search coarsely
     #dstep should go in parameter file.
-    dstep = loc_params['dstep1']
+    dstep = int(loc_params['dstep1'])
     dx, dy, dz = nlon/dstep, nlat/dstep, nr/dstep;
     qx, qy, qz = range(1, nlon, dx), range(1, nlat, dy), range(1, nr, dz)
     minx, miny, minz = grid_search_traveltimes_rms(arrsta, qx, qy, qz,
@@ -52,7 +52,7 @@ def run_3d_location_algorithm(event, station_list, params):
 
     #Finer search
     #buff should go in paramter file.
-    buff = loc_params['buff1']
+    buff = int(loc_params['buff1'])
     qx = range(minx - buff, minx + buff)
     qy = range(miny - buff, miny + buff)
     qz = range(minz - buff, minz + buff);
@@ -66,14 +66,14 @@ def run_3d_location_algorithm(event, station_list, params):
 
     #Search coarsely
     #dstep should go in parameter file.
-    dstep = loc_params['dstep2']
+    dstep = int(loc_params['dstep2'])
     dx, dy, dz = nlon / dstep, nlat / dstep, nr / dstep
     qx, qy, qz = range(1, nlon, dx), range(1, nlat, dy), range(1, nr, dz);
     minx, miny, minz, orgmin = grid_search_traveltimes_origin(arrsta, qx, qy,
                                                               qz, absvec, li)
     #Finer search
     #buff should go in parameter file.
-    buff = loc_params['buff2']
+    buff = int(loc_params['buff2'])
     qx = range(minx - buff, minx + buff)
     qy = range(miny - buff, miny + buff)
     qz = range(minz - buff, minz + buff);

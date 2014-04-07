@@ -5,6 +5,41 @@ sys.path.append('%s/data/python' % os.environ['ANTELOPE'])
 from antelope.stock import str2epoch, epoch2str
 from numpy import *
 
+def exp_grid_search(arrsta,qx,qy,qz,arrvec,li,ep):
+#Find the minimum value of the origin time standard deviation following Ben-Zion et al., 1992 (JGR)
+#  sta          list of station names; strings
+#   qx,qy,qz    vectors of indices to search through
+#   arrvec      vector of absolute arrivals in the same order as sta
+#   li          Linear_index class for the entire traveltime grid
+    from numpy import array #There is no reason this should be here, but the next line generated error messages if it wasn't. I'm confused
+    rms=array([])
+    origin_std=array([])
+    origin_mean=array([])
+    #origin_std=empty([ len(qy),len(qx),len(qz)] )+1000 #Give large starting values
+    #origin_mean=empty([ len(qy),len(qx),len(qz)] )
+    search_inds=Linear_index(len(qx),len(qy),len(qz))
+    for ix in qx: #range(len(qx)):  #Loop over the three vectors, searching every point
+        for iy in qy: #range(len(qy)):
+            for iz in qz: #range(len(qz)):
+                calctt=array([]); #initialize the calculated tt vector
+                #ind=li.get_1D(qx[ix],qy[iy],qz[iz]) #Find the vector index
+                ind=li.get_1D(ix,iy,iz)
+                calctt=read_tt_vector(arrsta,ind) #Make a traveltime vector from calculated times
+                orivec=arrvec-calctt #Take the difference
+                origin_mean=append( origin_mean,ep-orivec.mean()) #find the mean origin time
+                if min(calctt)<0: #If the traveltime <0, this gridpoint is null
+                    origin_std=append(origin_std,1000) #A large dummy value
+                    continue
+                origin_std=append(origin_std,orivec.std)
+                #origin_std[iy,ix,iz]=orivec.std()
+                #origin_mean[iy,ix,iz]=orivec.mean()
+    #Now find the 3D index of the best point so far
+    #new_origin=origin_mean.flatten()[oristd.argmin()] #The origin time with lowest std
+    min_ind=origin_mean.argmin()
+    (minx,miny,minz)=search_inds.get_3D(min_ind)
+    minx=qx[minx]; miny=qy[miny]; minz=qz[minz];
+    return minx,miny,minz,origin_mean[min_ind]+ev.epoch
+
 class Parameters():
 #The basic parameters of the velocity and interface grids and whatnot
     def __init__(self):
@@ -122,6 +157,10 @@ class Phalist(list):
             else: #If it didn't begin with #, this line is a phase arrival for the last event
                 self[ic].arrivals.append( self.Arrival(tmp[0],float(tmp[1]),float(tmp[2]),tmp[3],self[ic].epoch ))
         print 'Finished reading '+fnam
+    def show(self):
+    #Show the contents of Phalist in scedc format
+        for ev in self:
+            ev.show()
 
     class Event():
     #A class containing event metadata (if it exists)
@@ -133,7 +172,6 @@ class Phalist(list):
             self.mag=mag; #event magnitude
             #Calculate epoch time
             str_date=str(mon)+'/'+str(day)+'/'+str(yr)+' '+str(hr)+':'+str(mins)+':'+str(sec)
-            print str_date
             self.epoch=str2epoch(str_date) #time in seconds after 1/1/1970
             self.arrivals=list() #This will be a list of phase arrivals
         def show(self): #show the contents of the class in stdout
