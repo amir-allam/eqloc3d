@@ -11,20 +11,24 @@ velocity_grid &Arr{
 }
 
 propagation_grid &Arr{
-    minlon      -117.95
+    minlon      -117.80
     minlat      32.5
-    minz        0.0
-    nlon        250
-    nlat        230
-    nr          46
+    minz        3.0
+    nlon        73
+    nlat        76
+    nr          25
+    dlon        0.0327
+    dlat        0.0273
+    dr          2.0
+    ttdir   ./tt_1D/
 }
 
 location_parameters &Arr{
-    nr          46
-    nlat        230
-    nlon        250
-    dstep1      10
-    buff1       15
-    dstep2      10
-    buff2       15
+    nr          25
+    nlat        73
+    nlon        76
+    dstep1      5
+    buff1       7
+    dstep2      5
+    buff2       7
 }
