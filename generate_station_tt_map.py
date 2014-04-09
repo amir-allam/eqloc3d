@@ -1,8 +1,11 @@
 import sys
+import os
+sys.path.append('%s/data/python' % os.environ['ANTELOPE'])
 import logging
 import time
 import subprocess
 from misc_tools import *
+from mtools import Stalist
 
 tt_calculator = '../fortran/fm3d'
 
@@ -132,3 +135,8 @@ def _tt_ascii_2_binary(fnam):
     fid.close()
     print 'Finished writing arrival times to '+binfnam+' and '+hdrfnam
     #return data #Don't forget to remove this!!
+
+def gen_tt_map_malcolm(db):
+    from antelope.datascope import closing, dbopen
+    station_list = StationList(db, is_db=True)
+    gen_sta_tt_maps(station_list)

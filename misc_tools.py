@@ -2,9 +2,9 @@ import subprocess
 import time
 import struct
 import os,sys
-import utm
+#import utm
 sys.path.append('%s/data/python' % os.environ['ANTELOPE'])
-#from antelope.datascope import closing, dbopen
+from antelope.datascope import closing, dbopen
 from antelope.stock import str2epoch, epoch2str
 from numpy import * #Should probably be more specific
 from matplotlib import pyplot as plt
@@ -759,6 +759,7 @@ class StationList(list):
         """
         with closing(dbopen(db, 'r')) as db:
             tbl_site = db.schema_tables['site']
+            tbl_site = tbl_site.subset('lon >= -117.80 && lat >= 32.5 && lon <= -115.4129 && lat <= 34.5748')
             tbl_site = tbl_site.sort('sta', unique=True)
             for record in tbl_site.iter_record():
                 sta, lat, lon, elev = record.getv('sta', 'lat', 'lon', 'elev')
@@ -936,3 +937,113 @@ def process_events(dbin, dbout, events, station_list, params):
         event = _Event(dbin, event)
         solution = run_3d_location_algorithm(event, station_list, params)
 
+def create_event_list(inp, fmt):
+    """
+    Create and return a list of Event objects.
+
+    Arguments:
+    inp - A (potentially subsetted) View of the Event table from the
+    CSS3.0 database schema. Alternatively the path to a SCEDC format
+    flat file.
+
+    fmt - The format of the 'inp' argument; 'CSS3.0' or 'SCEDC'.
+
+    Return Values:
+    A list of Event objects.
+    """
+    from eqloc3d_classes import Event
+    event_list = []
+    if fmt == 'CSS3.0':
+        for record1 in inp.iter_record():
+            evid, evname, prefor, auth, commid, lddate = record1.getv('evid',
+                                                                     'evname',
+                                                                     'prefor',
+                                                                     'auth',
+                                                                     'commid',
+                                                                     'lddate')
+            event = Event(evid,
+                          prefor,
+                          evname=evname,
+                          auth=auth,
+                          commid=commid,
+                          lddate=lddate)
+            view2 = inp.subset('evid == %d' % evid)
+            view2 = view2.join('origin')
+            view2 = view2.separate('origin')
+            for record2 in view2.iter_record():
+                lat = record2.getv('lat')[0]
+                lon = record2.getv('lon')[0]
+                depth = record2.getv('depth')[0]
+                time = record2.getv('time')[0]
+                orid = record2.getv('orid')[0]
+                evid = record2.getv('evid')[0]
+                jdate = record2.getv('jdate')[0]
+                nass = record2.getv('nass')[0]
+                ndef = record2.getv('ndef')[0]
+                ndp = record2.getv('ndp')[0]
+                grn = record2.getv('grn')[0]
+                srn = record2.getv('srn')[0]
+                etype = record2.getv('etype')[0]
+                review = record2.getv('review')[0]
+                depdp = record2.getv('depdp')[0]
+                dtype = record2.getv('dtype')[0]
+                mb = record2.getv('mb')[0]
+                mbid = record2.getv('mbid')[0]
+                ms = record2.getv('ms')[0]
+                msid = record2.getv('msid')[0]
+                ml = record2.getv('ml')[0]
+                mlid = record2.getv('mlid')[0]
+                algorithm = record2.getv('algorithm')[0]
+                auth = record2.getv('auth')[0]
+                commid = record2.getv('commid')[0]
+                lddate = record2.getv('lddate')[0]
+                view3 = view2.subset('orid == %d' % orid)
+                view3 = view3.join('assoc')
+                view3 = view3.join('arrival')
+                arrival_data = [record3.getv('sta',
+                                             'arrival.time',
+                                             'iphase')\
+                                             + (None, )\
+                                             for record3 in view3.iter_record()]
+                arrivals = [Phase(sta, time, phase, qual)
+                            for sta, time, phase, qual in arrival_data]
+                event.add_origin(lat,
+                                 lon,
+                                 depth,
+                                 time,
+                                 orid,
+                                 evid,
+                                 auth,
+                                 arrivals,
+                                 jdate=jdate,
+                                 nass=nass,
+                                 ndef=ndef,
+                                 ndp=ndp,
+                                 grn=grn,
+                                 srn=srn,
+                                 etype=etype,
+                                 review=review,
+                                 depdp=depdp,
+                                 dtype=dtype,
+                                 mb=mb,
+                                 mbid=mbid,
+                                 ms=ms,
+                                 msid=msid,
+                                 ml=ml,
+                                 mlid=mlid,
+                                 algorithm=algorithm,
+                                 commid=commid,
+                                 lddate=lddate)
+            event.set_preferred_origin(event.prefor)
+            event_list += [event]
+    elif fmt == 'SCEDC':
+        infile = open(inp, 'r')
+        for line in infile:
+            line = line.strip().split()
+            #In SCEDC format, event lines begin with '#'
+            if line[0] == '#':
+                pass
+                #Need SCEDC format file
+    else:
+        raise Exception('Input format %s not recognized.' % fmt)
+    return event_list
