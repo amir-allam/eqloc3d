@@ -1,8 +1,11 @@
 import sys
+import os
+sys.path.append('%s/data/python' % os.environ['ANTELOPE'])
 import logging
 import time
 import subprocess
 from misc_tools import *
+from mtools import Stalist
 
 tt_calculator = '../fortran/fm3d'
 
@@ -40,7 +43,7 @@ def gen_sta_tt_maps(stalist,if_write_binary=True):
     for sta in stalist:
         print 'Generating travel times for station', sta.name, '\n'
         #Elevation can be set to a large negative number to glue the source to the surface
-        _write_sources_file(sta.elev/-1000,sta.lat,sta.lon) #Elevation is in km and negative
+        _write_sources_file(sta.elev * -1, sta.lat, sta.lon) #Elevation is in km and negative
         #_write_sources_file(0.0,sta.lat,sta.lon) #!!!! SET SOURCE TO 0 DEPTH
         run_fmm()
         #Create output file name
@@ -132,3 +135,8 @@ def _tt_ascii_2_binary(fnam):
     fid.close()
     print 'Finished writing arrival times to '+binfnam+' and '+hdrfnam
     #return data #Don't forget to remove this!!
+
+def gen_tt_map_malcolm(db):
+    from antelope.datascope import closing, dbopen
+    station_list = StationList(db, is_db=True)
+    gen_sta_tt_maps(station_list)

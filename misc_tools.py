@@ -2,9 +2,9 @@ import subprocess
 import time
 import struct
 import os,sys
-import utm
+#import utm
 sys.path.append('%s/data/python' % os.environ['ANTELOPE'])
-#from antelope.datascope import closing, dbopen
+from antelope.datascope import closing, dbopen
 from antelope.stock import str2epoch, epoch2str
 from numpy import * #Should probably be more specific
 from matplotlib import pyplot as plt
@@ -514,10 +514,10 @@ def locate_eq(ev):
     arrsta=[]        #a list of station names
     for arrival in ev.arrivals:
         if arrival.phase is 'P':
-            arrvec.append(arrival.ttime)
-            absvec.append(arrival.epoch)
-            arrsta.append(arrival.staname)
-        if not os.path.isfile(arrival.staname+'traveltime'):
+            arrvec.append(arrival.time - ev.time)
+            absvec.append(arrival.time)
+            arrsta.append(arrival.sta)
+        if not os.path.isfile(arrival.sta+'traveltime'):
             continue
     if len(arrvec)<6: #About this many phases are needed to get a decent result
         return None
@@ -529,11 +529,11 @@ def locate_eq(ev):
     #dstep should go in parameter file.
     dstep = int(loc_params['dstep2'])
     dx, dy, dz = nlon / dstep, nlat / dstep, nz / dstep
-    dx, dy, dz = 1,1,1 #Remove this later
+    #dx, dy, dz = 1,1,1 #Remove this later
     qx, qy, qz = range(1, nlon, dx), range(1, nlat, dy), range(1, nz, dz);
     minx, miny, minz, orgmin = grid_search_traveltimes_origin(arrsta, qx, qy,
                                                                 qz, absvec, li)
-    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.epoch)
+    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.time)
     #Finer search
 #    minx, miny, minz = grid_search_traveltimes_rms(arrsta, qx, qy, qz,
 #                                                            arrvec,li)
@@ -544,9 +544,9 @@ def locate_eq(ev):
     qx = fix_boundary_search(qx, li.nx)
     qy = fix_boundary_search(qy, li.ny)
     qz = fix_boundary_search(qz, li.nz)
-    #minx, miny, minz, orgmin = grid_search_traveltimes_origin(arrsta, qx, qy,
-    #                                                            qz, absvec, li)
-    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.epoch)
+    minx, miny, minz, orgmin = grid_search_traveltimes_origin(arrsta, qx, qy,
+                                                                qz, absvec, li)
+    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.time)
 #    minx, miny, minz = grid_search_traveltimes_rms(arrsta, qx, qy, qz,
 #                                                            arrvec,li)
     orgmin=0
@@ -561,7 +561,7 @@ def locate_eq(ev):
     #Find the best-fit source location in geographic coordinates
     newloc=[newlon,newlat,newz]=[ qlon[minx],qlat[miny],qdep[minz] ] #+loc_change
     elapsed_time=time.time()-start_time
-    print ev.id,len(arrvec),newlon,newlat,earth_rad-newz,ev.lon,ev.lat,ev.depth,ev.epoch-orgmin,elapsed_time,resid
+    print ev.orid,len(arrvec),newlon,newlat,earth_rad-newz,ev.lon,ev.lat,ev.depth,ev.time-orgmin,elapsed_time,resid
     #This function will return location, origin time, and error estimates for both
 
 def get_subgrid_loc(ix,iy,iz,arrvec,arrsta,li):
@@ -586,7 +586,6 @@ def get_subgrid_loc(ix,iy,iz,arrvec,arrsta,li):
     btt010= read_tt_vector(arrsta,ind)
     ind=li.get_1D(ix,iy,iz-1)
     btt001= read_tt_vector(arrsta,ind)
-
     #Calculate forward derivatives
     dt_dx=tt100-tt000
     dt_dy=tt010-tt000
@@ -759,6 +758,8 @@ class StationList(list):
         """
         with closing(dbopen(db, 'r')) as db:
             tbl_site = db.schema_tables['site']
+#The following line will be taken out
+            tbl_site = tbl_site.subset('lon >= -117.80 && lat >= 32.5 && lon <= -115.4456 && lat <= 34.5475')
             tbl_site = tbl_site.sort('sta', unique=True)
             for record in tbl_site.iter_record():
                 sta, lat, lon, elev = record.getv('sta', 'lat', 'lon', 'elev')
@@ -936,3 +937,149 @@ def process_events(dbin, dbout, events, station_list, params):
         event = _Event(dbin, event)
         solution = run_3d_location_algorithm(event, station_list, params)
 
+def create_event_list(inp, fmt):
+    """
+    Create and return a list of Event objects.
+
+    Arguments:
+    inp - A (potentially subsetted) View of the Event table from the
+    CSS3.0 database schema. Alternatively the path to a SCEDC format
+    flat file.
+
+    fmt - The format of the 'inp' argument; 'CSS3.0' or 'SCEDC'.
+
+    Return Values:
+    A list of Event objects.
+    """
+    from eqloc3d_classes import Event
+    import time as pytime
+    import calendar
+    event_list = []
+    if fmt == 'CSS3.0':
+        for record1 in inp.iter_record():
+            evid, evname, prefor, auth, commid, lddate = record1.getv('evid',
+                                                                     'evname',
+                                                                     'prefor',
+                                                                     'auth',
+                                                                     'commid',
+                                                                     'lddate')
+            event = Event(evid,
+                          prefor,
+                          evname=evname,
+                          auth=auth,
+                          commid=commid,
+                          lddate=lddate)
+            view2 = inp.subset('evid == %d' % evid)
+            view2 = view2.join('origin')
+            view2 = view2.separate('origin')
+            for record2 in view2.iter_record():
+                lat = record2.getv('lat')[0]
+                lon = record2.getv('lon')[0]
+                depth = record2.getv('depth')[0]
+                time = record2.getv('time')[0]
+                orid = record2.getv('orid')[0]
+                evid = record2.getv('evid')[0]
+                jdate = record2.getv('jdate')[0]
+                nass = record2.getv('nass')[0]
+                ndef = record2.getv('ndef')[0]
+                ndp = record2.getv('ndp')[0]
+                grn = record2.getv('grn')[0]
+                srn = record2.getv('srn')[0]
+                etype = record2.getv('etype')[0]
+                review = record2.getv('review')[0]
+                depdp = record2.getv('depdp')[0]
+                dtype = record2.getv('dtype')[0]
+                mb = record2.getv('mb')[0]
+                mbid = record2.getv('mbid')[0]
+                ms = record2.getv('ms')[0]
+                msid = record2.getv('msid')[0]
+                ml = record2.getv('ml')[0]
+                mlid = record2.getv('mlid')[0]
+                algorithm = record2.getv('algorithm')[0]
+                auth = record2.getv('auth')[0]
+                commid = record2.getv('commid')[0]
+                lddate = record2.getv('lddate')[0]
+                view3 = view2.subset('orid == %d' % orid)
+                view3 = view3.join('assoc')
+                view3 = view3.join('arrival')
+                arrival_data = [record3.getv('sta',
+                                             'arrival.time',
+                                             'iphase', 'arid')\
+                                             for record3 in view3.iter_record()]
+                arrivals = [Phase(sta, time, phase, arid=arid)
+                            for sta, time, phase, arid in arrival_data]
+                event.add_origin(lat,
+                                 lon,
+                                 depth,
+                                 time,
+                                 auth,
+                                 arrivals=arrivals,
+                                 orid=orid,
+                                 evid=evid,
+                                 jdate=jdate,
+                                 nass=nass,
+                                 ndef=ndef,
+                                 ndp=ndp,
+                                 grn=grn,
+                                 srn=srn,
+                                 etype=etype,
+                                 review=review,
+                                 depdp=depdp,
+                                 dtype=dtype,
+                                 mb=mb,
+                                 mbid=mbid,
+                                 ms=ms,
+                                 msid=msid,
+                                 ml=ml,
+                                 mlid=mlid,
+                                 algorithm=algorithm,
+                                 commid=commid,
+                                 lddate=lddate)
+            event.set_preferred_origin(event.prefor)
+            event_list += [event]
+    elif fmt == 'SCEDC':
+        infile = open(inp, 'r')
+        event = None
+        for line in infile:
+            line = line.strip().split()
+            #In SCEDC format, event lines begin with '#'
+            if line[0] == '#':
+                if event != None:
+                    event_list += [event]
+                year = int(line[1])
+                month = int(line[2])
+                day = int(line[3])
+                hour = int(line[4])
+                minute = int(line[5])
+                second = float(line[6])
+                lat = float(line[7])
+                lon = float(line[8])
+                depth = float(line[9])
+                mag = float(line[10])
+                orid = int(line[14])
+                time = calendar.timegm(pytime.struct_time(list([year,
+                                              month,
+                                              day,
+                                              hour,
+                                              minute,
+                                              second,
+                                              0, 0, 0])))
+                event = Event(evid_ctr,
+                              orid,
+                              auth='SCEDC',
+                              lddate=pytime.time())
+                event.add_origin(lat, lon, depth, time, orid, 'SCEDC')
+                event.set_preferred_origin(orid)
+                evid_ctr += 1
+            else:
+                sta = line[0]
+                arrtime = float(line[1]) + time
+                qual = float(line[2])
+                iphase = line[3]
+                event.preferred_origin.arrivals += [Phase(sta,
+                                                          arrtime,
+                                                          iphase)]
+
+    else:
+        raise Exception('Input format %s not recognized.' % fmt)
+    return event_list
