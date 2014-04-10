@@ -758,6 +758,7 @@ class StationList(list):
         """
         with closing(dbopen(db, 'r')) as db:
             tbl_site = db.schema_tables['site']
+#The following line will be taken out
             tbl_site = tbl_site.subset('lon >= -117.80 && lat >= 32.5 && lon <= -115.4456 && lat <= 34.5475')
             tbl_site = tbl_site.sort('sta', unique=True)
             for record in tbl_site.iter_record():
