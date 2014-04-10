@@ -514,10 +514,10 @@ def locate_eq(ev):
     arrsta=[]        #a list of station names
     for arrival in ev.arrivals:
         if arrival.phase is 'P':
-            arrvec.append(arrival.ttime)
-            absvec.append(arrival.epoch)
-            arrsta.append(arrival.staname)
-        if not os.path.isfile(arrival.staname+'traveltime'):
+            arrvec.append(arrival.time - ev.time)
+            absvec.append(arrival.time)
+            arrsta.append(arrival.sta)
+        if not os.path.isfile(arrival.sta+'traveltime'):
             continue
     if len(arrvec)<6: #About this many phases are needed to get a decent result
         return None
@@ -529,11 +529,11 @@ def locate_eq(ev):
     #dstep should go in parameter file.
     dstep = int(loc_params['dstep2'])
     dx, dy, dz = nlon / dstep, nlat / dstep, nz / dstep
-    dx, dy, dz = 1,1,1 #Remove this later
+    #dx, dy, dz = 1,1,1 #Remove this later
     qx, qy, qz = range(1, nlon, dx), range(1, nlat, dy), range(1, nz, dz);
     minx, miny, minz, orgmin = grid_search_traveltimes_origin(arrsta, qx, qy,
                                                                 qz, absvec, li)
-    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.epoch)
+    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.time)
     #Finer search
 #    minx, miny, minz = grid_search_traveltimes_rms(arrsta, qx, qy, qz,
 #                                                            arrvec,li)
@@ -544,9 +544,9 @@ def locate_eq(ev):
     qx = fix_boundary_search(qx, li.nx)
     qy = fix_boundary_search(qy, li.ny)
     qz = fix_boundary_search(qz, li.nz)
-    #minx, miny, minz, orgmin = grid_search_traveltimes_origin(arrsta, qx, qy,
-    #                                                            qz, absvec, li)
-    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.epoch)
+    minx, miny, minz, orgmin = grid_search_traveltimes_origin(arrsta, qx, qy,
+                                                                qz, absvec, li)
+    #minx, miny, minz, orgmin = exp_grid_search(arrsta,qx,qy,qz, absvec, li,ev.time)
 #    minx, miny, minz = grid_search_traveltimes_rms(arrsta, qx, qy, qz,
 #                                                            arrvec,li)
     orgmin=0
@@ -561,7 +561,7 @@ def locate_eq(ev):
     #Find the best-fit source location in geographic coordinates
     newloc=[newlon,newlat,newz]=[ qlon[minx],qlat[miny],qdep[minz] ] #+loc_change
     elapsed_time=time.time()-start_time
-    print ev.id,len(arrvec),newlon,newlat,earth_rad-newz,ev.lon,ev.lat,ev.depth,ev.epoch-orgmin,elapsed_time,resid
+    print ev.orid,len(arrvec),newlon,newlat,earth_rad-newz,ev.lon,ev.lat,ev.depth,ev.time-orgmin,elapsed_time,resid
     #This function will return location, origin time, and error estimates for both
 
 def get_subgrid_loc(ix,iy,iz,arrvec,arrsta,li):
@@ -586,7 +586,6 @@ def get_subgrid_loc(ix,iy,iz,arrvec,arrsta,li):
     btt010= read_tt_vector(arrsta,ind)
     ind=li.get_1D(ix,iy,iz-1)
     btt001= read_tt_vector(arrsta,ind)
-
     #Calculate forward derivatives
     dt_dx=tt100-tt000
     dt_dy=tt010-tt000
@@ -759,7 +758,7 @@ class StationList(list):
         """
         with closing(dbopen(db, 'r')) as db:
             tbl_site = db.schema_tables['site']
-            tbl_site = tbl_site.subset('lon >= -117.80 && lat >= 32.5 && lon <= -115.4129 && lat <= 34.5748')
+            tbl_site = tbl_site.subset('lon >= -117.80 && lat >= 32.5 && lon <= -115.4456 && lat <= 34.5475')
             tbl_site = tbl_site.sort('sta', unique=True)
             for record in tbl_site.iter_record():
                 sta, lat, lon, elev = record.getv('sta', 'lat', 'lon', 'elev')

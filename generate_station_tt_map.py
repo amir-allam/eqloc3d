@@ -43,7 +43,7 @@ def gen_sta_tt_maps(stalist,if_write_binary=True):
     for sta in stalist:
         print 'Generating travel times for station', sta.name, '\n'
         #Elevation can be set to a large negative number to glue the source to the surface
-        _write_sources_file(sta.elev/-1000,sta.lat,sta.lon) #Elevation is in km and negative
+        _write_sources_file(sta.elev * -1, sta.lat, sta.lon) #Elevation is in km and negative
         #_write_sources_file(0.0,sta.lat,sta.lon) #!!!! SET SOURCE TO 0 DEPTH
         run_fmm()
         #Create output file name
