@@ -1004,19 +1004,18 @@ def create_event_list(inp, fmt):
                 view3 = view3.join('arrival')
                 arrival_data = [record3.getv('sta',
                                              'arrival.time',
-                                             'iphase')\
-                                             + (None, )\
+                                             'iphase', 'arid')\
                                              for record3 in view3.iter_record()]
-                arrivals = [Phase(sta, time, phase, qual)
-                            for sta, time, phase, qual in arrival_data]
+                arrivals = [Phase(sta, time, phase, arid=arid)
+                            for sta, time, phase, arid in arrival_data]
                 event.add_origin(lat,
                                  lon,
                                  depth,
                                  time,
-                                 orid,
-                                 evid,
                                  auth,
-                                 arrivals,
+                                 arrivals=arrivals,
+                                 orid=orid,
+                                 evid=evid,
                                  jdate=jdate,
                                  nass=nass,
                                  ndef=ndef,
@@ -1039,8 +1038,6 @@ def create_event_list(inp, fmt):
             event.set_preferred_origin(event.prefor)
             event_list += [event]
     elif fmt == 'SCEDC':
-#evid should be set using an idserver!!!
-        evid_ctr = 100000
         infile = open(inp, 'r')
         event = None
         for line in infile:
@@ -1071,7 +1068,7 @@ def create_event_list(inp, fmt):
                               orid,
                               auth='SCEDC',
                               lddate=pytime.time())
-                event.add_origin(lat, lon, depth, time, orid, evid_ctr, 'SCEDC')
+                event.add_origin(lat, lon, depth, time, orid, 'SCEDC')
                 event.set_preferred_origin(orid)
                 evid_ctr += 1
             else:
@@ -1081,8 +1078,7 @@ def create_event_list(inp, fmt):
                 iphase = line[3]
                 event.preferred_origin.arrivals += [Phase(sta,
                                                           arrtime,
-                                                          iphase,
-                                                          qual)]
+                                                          iphase)]
 
     else:
         raise Exception('Input format %s not recognized.' % fmt)

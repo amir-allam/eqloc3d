@@ -319,8 +319,8 @@ class Event():
     """
     #def __init__(self, time, lat, lon, depth, mag, magtype=None, evid=None):
     def __init__(self,
-                 evid,
                  prefor,
+                 evid=None,
                  evname=None,
                  auth=None,
                  commid=None,
@@ -371,10 +371,10 @@ class Event():
                    lon,
                    depth,
                    time,
-                   orid,
-                   evid,
                    auth,
                    arrivals=[],
+                   orid=None,
+                   evid=None,
                    jdate=None,
                    nass=None,
                    ndef=None,
@@ -401,9 +401,9 @@ class Event():
                                 lon,
                                 depth,
                                 time,
-                                orid,
-                                evid,
                                 auth,
+                                orid=orid,
+                                evid=evid,
                                 arrivals=arrivals,
                                 jdate=jdate,
                                 nass=nass,
@@ -439,42 +439,61 @@ class Event():
         -1 - Failure
         """
         if fmt == 'CSS3.0':
-            for origin in self.origins:
-                if origin.auth == 'eqloc3d':
-                    tbl_origin = out.schema_tables['origin']
-                    tbl_origin.record = tbl_origin.add_null()
-                    tbl_origin.putv('lat', origin.lat,
-                                    'lon', origin.lon,
-                                    'depth', origin.depth,
-                                    'time', origin.time,
-                                    'orid', origin.orid,
-                                    'evid', origin.evid,
-                                    'auth', origin.auth,
-                                    'jdate', origin.jdate,
-                                    'nass', origin.nass,
-                                    'ndef', origin.ndef,
-                                    'ndp', origin.ndp,
-                                    'grn', origin.grn,
-                                    'srn', origin.srn,
-                                    'etype', origin.etype,
-                                    'review', origin.review,
-                                    'depdp', origin.depdp,
-                                    'dtype', origin.dtype,
-                                    'mb', origin.mb,
-                                    'mbid', origin.mbid,
-                                    'ms', origin.ms,
-                                    'msid', origin.msid,
-                                    'ml', origin.ml,
-                                    'mlid', origin.mlid,
-                                    'algorithm', origin.algorithm,
-                                    'commid', origin.commid,
-                                    'lddate', origin.lddate)
-            return 0
+            return self._write_CSS()
         elif fmt == 'SCEDC':
             #Do it the SCEDC way
             pass
         else:
             raise Exception('Output format %s not recognized' % fmt)
+    def _write_css(self, db):
+        """
+        Write newly authored data to a CSS3.0 database.
+
+        Arguments:
+        db - Output database.
+        """
+        #There are three cases that must be handled when writing out to
+        #a CSS3.0 schema database.
+        #Case 1: Reading from and writing to SAME database.
+        #Case 2: Reading from and writing to SEPARATE databases.
+        #Case 3: Reading from SCEDC format file and writing to CSS3.0
+        #database.
+        for origin in self.origins:
+            if origin.auth == 'eqloc3d':
+                tbl_origin = out.schema_tables['origin']
+                tbl_origin.record = tbl_origin.addnull()
+                tbl_origin.putv('lat', origin.lat,
+                                'lon', origin.lon,
+                                'depth', origin.depth,
+                                'time', origin.time,
+                                'orid', origin.orid,
+                                'evid', origin.evid,
+                                'auth', origin.auth,
+                                'jdate', origin.jdate,
+                                'nass', origin.nass,
+                                'ndef', origin.ndef,
+                                'ndp', origin.ndp,
+                                'grn', origin.grn,
+                                'srn', origin.srn,
+                                'etype', origin.etype,
+                                'review', origin.review,
+                                'depdp', origin.depdp,
+                                'dtype', origin.dtype,
+                                'mb', origin.mb,
+                                'mbid', origin.mbid,
+                                'ms', origin.ms,
+                                'msid', origin.msid,
+                                'ml', origin.ml,
+                                'mlid', origin.mlid,
+                                'algorithm', origin.algorithm,
+                                'commid', origin.commid,
+                                'lddate', origin.lddate)
+                tbl_assoc = out.schema_tables['assoc']
+                for arrival in origin.arrivals:
+                    if arrival.arid == None:
+                        pass
+                        #arrival is from SCEDC source add row to arrival table
+        return 0
 
 class Origin():
     """
@@ -485,10 +504,10 @@ class Origin():
                  lon,
                  depth,
                  time,
-                 orid,
-                 evid,
                  auth,
                  arrivals=[],
+                 orid=None,
+                 evid=None,
                  jdate=None,
                  nass=None,
                  ndef=None,
@@ -576,11 +595,12 @@ class Phase():
     """
     A container class for phase data.
     """
-    def __init__(self, sta, time, phase, qual):
+    def __init__(self, sta, time, phase, qual=None, arid=None):
         self.sta = sta
         self.time = time
         self.phase = phase
         self.qual = qual
+        self.arid = arid
 
     def __str__(self):
         ret = 'Arrival Object\n--------------\n'
