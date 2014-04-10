@@ -264,9 +264,9 @@ class Station():
     def __str__(self):
         ret = 'Station Object\n--------------\n'
         ret += 'name:\t\t%s\n' % self.name
-        ret += 'lat: \t\t%f\n' % self.lat
-        ret += 'lon: \t\t%f\n' % self.lon
-        ret += 'elev: \t\t%f\n' % self.elev
+        ret += 'lat: \t\t%s\n' % self.lat
+        ret += 'lon: \t\t%s\n' % self.lon
+        ret += 'elev: \t\t%s\n' % self.elev
 
     def show(self): #show the contents of the class
         print '%s %5.4f %5.4f %5.2f'% (self.name,self.lon,self.lat,self.elev)
@@ -285,9 +285,9 @@ class StationList(list):
         ret = 'StationList Object\n------------------\n'
         for sta in self:
             ret += 'sta:\t\t%s\n' % sta.name
-            ret += 'lat:\t\t%f\n' % sta.lat
-            ret += 'lon:\t\t%f\n' % sta.lon
-            ret += 'elev:\t\t%f\n' % sta.elev
+            ret += 'lat:\t\t%s\n' % sta.lat
+            ret += 'lon:\t\t%s\n' % sta.lon
+            ret += 'elev:\t\t%s\n' % sta.elev
         return ret
 
     def _init_db(self, db):
@@ -342,12 +342,12 @@ class Event():
 
     def __str__(self):
         ret = 'Event Object\n------------\n'
-        ret += 'evid:\t\t%d\n' % self.evid
+        ret += 'evid:\t\t%s\n' % self.evid
         ret += 'evname:\t\t%s\n' % self.evname
-        ret += 'prefor:\t\t%d\n' % self.prefor
+        ret += 'prefor:\t\t%s\n' % self.prefor
         ret += 'auth:\t\t%s\n' % self.auth
-        ret += 'commid:\t\t%d\n' % self.commid
-        ret += 'lddate:\t\t%f\n' % self.lddate
+        ret += 'commid:\t\t%s\n' % self.commid
+        ret += 'lddate:\t\t%s\n' % self.lddate
         ret += 'origins:\n'
         if len(self.origins) == 0:
             ret += '\t\tNone\n'
@@ -374,7 +374,7 @@ class Event():
                    orid,
                    evid,
                    auth,
-                   arrivals,
+                   arrivals=[],
                    jdate=None,
                    nass=None,
                    ndef=None,
@@ -404,7 +404,7 @@ class Event():
                                 orid,
                                 evid,
                                 auth,
-                                arrivals,
+                                arrivals=arrivals,
                                 jdate=jdate,
                                 nass=nass,
                                 ndef=ndef,
@@ -541,32 +541,32 @@ class Origin():
         Return string representation of Origin object.
         """
         ret = 'Origin Object\n-------------\n'
-        ret += 'lat:\t\t%f\n' % self.lat
-        ret += 'lon:\t\t%f\n' % self.lon
-        ret += 'depth:\t\t%f\n' % self.depth
-        ret += 'time:\t\t%f\n' % self.time
-        ret += 'orid:\t\t%d\n' % self.orid
-        ret += 'evid:\t\t%d\n' % self.evid
+        ret += 'lat:\t\t%s\n' % self.lat
+        ret += 'lon:\t\t%s\n' % self.lon
+        ret += 'depth:\t\t%s\n' % self.depth
+        ret += 'time:\t\t%s\n' % self.time
+        ret += 'orid:\t\t%s\n' % self.orid
+        ret += 'evid:\t\t%s\n' % self.evid
         ret += 'auth:\t\t%s\n' % self.auth
-        ret += 'jdate:\t\t%d\n' % self.jdate
-        ret += 'nass:\t\t%d\n' % self.nass
-        ret += 'ndef:\t\t%d\n' % self.ndef
-        ret += 'ndp:\t\t%d\n' % self.ndp
-        ret += 'grn:\t\t%d\n' % self.grn
-        ret += 'srn:\t\t%d\n' % self.srn
+        ret += 'jdate:\t\t%s\n' % self.jdate
+        ret += 'nass:\t\t%s\n' % self.nass
+        ret += 'ndef:\t\t%s\n' % self.ndef
+        ret += 'ndp:\t\t%s\n' % self.ndp
+        ret += 'grn:\t\t%s\n' % self.grn
+        ret += 'srn:\t\t%s\n' % self.srn
         ret += 'etype:\t\t%s\n' % self.etype
         ret += 'review:\t\t%s\n' % self.review
-        ret += 'depdp:\t\t%f\n' % self.depdp
+        ret += 'depdp:\t\t%s\n' % self.depdp
         ret += 'dtype:\t\t%s\n' % self.dtype
-        ret += 'mb:\t\t%f\n' % self.mb
-        ret += 'mbid:\t\t%d\n' % self.mbid
-        ret += 'ms:\t\t%f\n' % self.ms
-        ret += 'msid:\t\t%d\n' % self.msid
-        ret += 'ml:\t\t%f\n' % self.ml
-        ret += 'mlid:\t\t%d\n' % self.mlid
+        ret += 'mb:\t\t%s\n' % self.mb
+        ret += 'mbid:\t\t%s\n' % self.mbid
+        ret += 'ms:\t\t%s\n' % self.ms
+        ret += 'msid:\t\t%s\n' % self.msid
+        ret += 'ml:\t\t%s\n' % self.ml
+        ret += 'mlid:\t\t%s\n' % self.mlid
         ret += 'algorithm:\t\t%s\n' % self.algorithm
-        ret += 'commid:\t\t%d\n' % self.commid
-        ret += 'lddate:\t\t%f\n' % self.lddate
+        ret += 'commid:\t\t%s\n' % self.commid
+        ret += 'lddate:\t\t%s\n' % self.lddate
         ret += 'arrivals:\n'
         for i in range(len(self.arrivals)):
             ret += '\t\t%s' % self.arrivals[i]
@@ -585,7 +585,7 @@ class Phase():
     def __str__(self):
         ret = 'Arrival Object\n--------------\n'
         ret += 'sta:\t\t%s\n' % self.sta
-        ret += 'time:\t\t%f\n' % self.time
+        ret += 'time:\t\t%s\n' % self.time
         ret += 'phase:\t\t%s\n' % self.phase
         ret += 'qual:\t\t%s\n'  % self.qual
         return ret
